@@ -1,41 +1,44 @@
-import os
+from flask import Flask, request, render_template, jsonify
+import re
+import string
 import joblib
-from flask import Flask, render_template, request, jsonify
+import os
 
 app = Flask(__name__)
 
-# Get absolute paths for model files
-model_path = os.path.join(os.path.dirname(__file__), "fake_news_model.pkl")
-vectorizer_path = os.path.join(os.path.dirname(__file__), "vectorizer.pkl")
-
-# Ensure model files exist before loading
-if not os.path.exists(model_path) or not os.path.exists(vectorizer_path):
-    raise FileNotFoundError("⚠️ Model or vectorizer file is missing. Upload them before running the app.")
-
 # Load trained model and vectorizer
-model = joblib.load(model_path)
-vectorizer = joblib.load(vectorizer_path)
+if not os.path.exists("fake_news_model.pkl") or not os.path.exists("vectorizer.pkl"):
+    raise FileNotFoundError("⚠️ Model or vectorizer file is missing! Run `train_model.py` first.")
+
+vectorizer = joblib.load("vectorizer.pkl")
+classifier = joblib.load("fake_news_model.pkl")
+
+# Preprocess function
+def preprocess_text(text):
+    text = text.lower()
+    text = re.sub(f"[{string.punctuation}]", "", text)
+    return text
 
 @app.route('/')
 def home():
-    return render_template('index.html')
+    return render_template("index.html")
 
 @app.route('/predict', methods=['POST'])
 def predict():
-    news_text = request.form.get("news_text")
+    news_text = request.form.get("news_text", "")
 
-    if not news_text or news_text.strip() == "":
-        return jsonify({'error': '⚠️ Please enter some text!'}), 400
+    if not news_text.strip():
+        return jsonify({"error": "⚠️ Please enter some text!"}), 400
 
-    # Vectorize input
-    transformed_text = vectorizer.transform([news_text])
-    prediction = model.predict(transformed_text)[0]
+    processed_text = preprocess_text(news_text)
+    input_tfidf = vectorizer.transform([processed_text])
+    prediction = classifier.predict(input_tfidf)[0]
 
-    # Format result
     result = "✅ Real News" if prediction == 1 else "❌ Fake News"
     color = "#28a745" if prediction == 1 else "#dc3545"
 
-    return jsonify({'result': result, 'color': color})
+    return jsonify({"result": result, "color": color})
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    port = int(os.environ.get("PORT", 8080))
+    app.run(host='0.0.0.0', port=port, debug=True)
