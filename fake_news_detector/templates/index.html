@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fake News Detector</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; margin: 50px; }
+        textarea { width: 80%; height: 100px; }
+        button { padding: 10px 20px; margin-top: 10px; }
+        #result { margin-top: 20px; font-size: 20px; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h1>Fake News Detector</h1>
+    <form id="newsForm">
+        <textarea id="news_text" placeholder="Enter news text here..."></textarea><br>
+        <button type="submit">Check</button>
+    </form>
+    <div id="result"></div>
+    
+    <script>
+        document.getElementById("newsForm").addEventListener("submit", function(event) {
+            event.preventDefault();
+            let newsText = document.getElementById("news_text").value;
+            fetch("/predict", {
+                method: "POST",
+                body: new URLSearchParams({ news_text: newsText }),
+                headers: { "Content-Type": "application/x-www-form-urlencoded" }
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById("result").innerText = "Prediction: " + data.prediction;
+            });
+        });
+    </script>
+</body>
+</html>
