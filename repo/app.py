@@ -4,6 +4,11 @@ import re
 import string
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import PassiveAggressiveClassifier
+import os
+
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 8080))  # Use Railway-assigned port
+    app.run(host="0.0.0.0", port=port, debug=True)
 
 app = Flask(__name__)
 
