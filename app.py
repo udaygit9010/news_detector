@@ -1,15 +1,13 @@
-from flask import Flask, request, render_template, jsonify
-import pandas as pd
+from flask import Flask, render_template, request, jsonify
+import joblib
 import re
 import string
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.linear_model import PassiveAggressiveClassifier
-import os
 
 app = Flask(__name__)
 
-# Load dataset
-df = pd.read_csv("fake_news_dataset.csv")
+# Load trained model and vectorizer
+model = joblib.load("fake_news_model.pkl")  # Ensure correct path
+vectorizer = joblib.load("vectorizer.pkl")  # Ensure correct path
 
 # Text preprocessing function
 def preprocess_text(text):
@@ -17,26 +15,27 @@ def preprocess_text(text):
     text = re.sub(f"[{string.punctuation}]", "", text)
     return text
 
-df['text'] = df['text'].apply(preprocess_text)
-
-# Train model
-vectorizer = TfidfVectorizer(stop_words='english', max_df=0.7)
-X_tfidf = vectorizer.fit_transform(df['text'])
-classifier = PassiveAggressiveClassifier(max_iter=50)
-classifier.fit(X_tfidf, df['label'])
-
 @app.route('/')
 def home():
-    return render_template("index.html")
+    return render_template('index.html')
 
 @app.route('/predict', methods=['POST'])
 def predict():
-    news_text = request.form['news_text']
+    news_text = request.form.get("news_text")
+    
+    if not news_text or news_text.strip() == "":
+        return jsonify({'error': 'No text provided'}), 400
+    
+    # Preprocess and vectorize input
     processed_text = preprocess_text(news_text)
-    input_tfidf = vectorizer.transform([processed_text])
-    prediction = classifier.predict(input_tfidf)[0]
-    return jsonify({"prediction": prediction})
+    transformed_text = vectorizer.transform([processed_text])
+    prediction = model.predict(transformed_text)[0]
+    
+    # Format result
+    result = "Real News ✅" if prediction == 1 else "Fake News ❌"
+    color = "#28a745" if prediction == 1 else "#dc3545"
+    
+    return jsonify({'result': result, 'color': color})
 
 if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 8080))
-    app.run(host='0.0.0.0', port=port, debug=True)
+    app.run(debug=True)
